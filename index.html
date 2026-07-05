@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydropost Interactive Map</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Main layout */
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        #map-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #111;
+            cursor: grab;
+        }
+
+        #map-wrapper:active {
+            cursor: grabbing;
+        }
+
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        #map-image {
+            display: block;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .point-marker {
+            position: absolute;
+            width: 66px;
+            height: 66px;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            transition: transform 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ff3333;
+            font-size: 40px;
+            font-weight: bold;
+            pointer-events: auto;
+            z-index: 10;
+            text-shadow: 0 0 4px rgba(0,0,0,0.8), 1px 1px 2px rgba(0,0,0,0.9);
+        }
+
+        .point-marker:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            z-index: 100;
+            color: #ff6666;
+        }
+
+        .point-marker:active {
+            transform: translate(-50%, -50%) scale(1.2);
+            color: #ff0000;
+        }
+
+        .point-marker::before {
+            content: '✕';
+        }
+
+        /* Info panel */
+        #info-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 46vw;
+            max-width: 520px;
+            min-width: 400px;
+            height: 37vh;
+            background: rgba(20, 20, 30, 0.95);
+            color: white;
+            padding: 17px 23px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        #info-panel.visible {
+            transform: translateY(0);
+        }
+
+        #info-panel h3 {
+            margin-bottom: 12px;
+            color: #4fc3f7;
+            font-size: 1.27rem;
+        }
+
+        #info-panel .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 17px;
+            background: #ff5252;
+            border: none;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 21px;
+            line-height: 1;
+        }
+
+        #info-panel p {
+            margin: 9px 0;
+            font-size: 1.04rem;
+        }
+
+        #level-chart {
+            width: 100%;
+            max-width: 575px;
+            height: 138px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+
+        .btn {
+            padding: 11.5px 23px;
+            font-size: 1.15rem;
+            background: #4fc3f7;
+            border: none;
+            color: #1a1a2e;
+            border-radius: 4.6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #29b6f6;
+        }
+
+        .btn:active {
+            background: #0288d1;
+        }
+
+        /* Controls */
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-btn {
+            width: 50.6px;
+            height: 50.6px;
+            background: rgba(20, 20, 30, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 9.2px;
+            cursor: pointer;
+            font-size: 1.38rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(79, 195, 247, 0.3);
+            border-color: #4fc3f7;
+        }
+
+        #zoom-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.9);
+            color: #4fc3f7;
+            padding: 9.2px 18.4px;
+            border-radius: 23px;
+            font-size: 0.98rem;
+            font-family: monospace;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+        }
+
+        /* Loading */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.38rem;
+            background: rgba(0,0,0,0.8);
+            padding: 23px 46px;
+            border-radius: 11.5px;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading map data...</div>
+
+    <div id="app">
+        <div id="map-wrapper">
+            <div id="map-container">
+                <img id="map-image" src="picture/enisey underlayer blank.png" alt="Hydropost Map">
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="zoom-in" title="Zoom In (Shift + Scroll)">+</button>
+        <button class="control-btn" id="zoom-out" title="Zoom Out (Shift + Scroll)">−</button>
+        <button class="control-btn" id="reset-view" title="Reset View (Double-click)">⟳</button>
+    </div>
+
+    <div id="zoom-display">100%</div>
+
+    <div id="info-panel">
+        <button class="close-btn" onclick="closeInfoPanel()">×</button>
+        <h3 id="point-name"></h3>
+        <p id="point-coords"></p>
+        <canvas id="level-chart"></canvas>
+        <p><button class="btn" onclick="playSound()">Play Sound</button></p>
+    </div>
+
+    <script>
+// Hydropost data
+let hydroposts = [];
+let levels = {};
+let selectedPoint = null;
+
+// Map bounds - lat min 49, lat max 74, lon min 72, lon max 110
+const MAP_BOUNDS = {
+    minLat: 49.0,
+    maxLat: 74.0,
+    minLon: 72.0,
+    maxLon: 110.0
+};
+
+// Zoom/pan state
+let scale = 0.85;
+let translateX = 0;
+let translateY = 0;
+let isPanning = false;
+let lastPanX = 0;
+let lastPanY = 0;
+
+// DOM elements
+const mapContainer = document.getElementById('map-container');
+const mapWrapper = document.getElementById('map-wrapper');
+const mapImage = document.getElementById('map-image');
+const zoomDisplay = document.getElementById('zoom-display');
+
+function updateTransform() {
+    // Clamp translation to keep map within viewport
+    clampTranslation();
+    mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    zoomDisplay.textContent = Math.round(scale * 100) + '%';
+}
+
+function clampTranslation() {
+    if (!mapImage.complete) return;
+    const imgWidth = mapImage.naturalWidth;
+    const imgHeight = mapImage.naturalHeight;
+    const wrapperRect = mapWrapper.getBoundingClientRect();
+
+    // Calculate the bounds of the map in viewport coordinates
+    const scaledWidth = imgWidth * scale;
+    const scaledHeight = imgHeight * scale;
+
+    // Max translation: map's right/bottom edge at viewport's right/bottom
+    // Min translation: map's left/top edge at viewport's left/top
+    const maxTranslateX = Math.min(0, wrapperRect.width - scaledWidth);
+    const maxTranslateY = Math.min(0, wrapperRect.height - scaledHeight);
+    const minTranslateX = Math.max(0, wrapperRect.width - scaledWidth);
+    const minTranslateY = Math.max(0, wrapperRect.height - scaledHeight);
+
+    // Actually, let's think about this more carefully:
+    // When scale=1, translateX=0 means left edge of map at left edge of viewport
+    // translateX negative means map moved right (showing left side of map)
+    // translateX positive means map moved left (showing right side of map)
+    // So: min translateX = wrapperRect.width - scaledWidth (map right at viewport right)
+    //     max translateX = 0 (map left at viewport left)
+
+    const minTx = wrapperRect.width - scaledWidth;
+    const maxTx = 0;
+    const minTy = wrapperRect.height - scaledHeight;
+    const maxTy = 0;
+
+    translateX = Math.max(minTx, Math.min(maxTx, translateX));
+    translateY = Math.max(minTy, Math.min(maxTy, translateY));
+}
+
+function zoom(delta, centerX, centerY) {
+    const rect = mapWrapper.getBoundingClientRect();
+    const mouseX = centerX - rect.left;
+    const mouseY = centerY - rect.top;
+
+    // Calculate minimum scale to fit map width to wrapper
+    const minScale = Math.max(
+        rect.width / mapImage.naturalWidth,
+        rect.height / mapImage.naturalHeight
+    );
+    const newScale = Math.max(minScale, Math.min(5, scale * delta));
+    const scaleRatio = newScale / scale;
+
+    // Zoom towards mouse position
+    translateX = mouseX - (mouseX - translateX) * scaleRatio;
+    translateY = mouseY - (mouseY - translateY) * scaleRatio;
+
+    scale = newScale;
+    updateTransform();
+}
+
+function resetView() {
+    scale = 0.85;
+    translateX = 0;
+    translateY = 0;
+    updateTransform();
+}
+
+function latLonToPixel(lat, lon, imgWidth, imgHeight) {
+    const x = ((lon - MAP_BOUNDS.minLon) / (MAP_BOUNDS.maxLon - MAP_BOUNDS.minLon)) * imgWidth;
+    const y = ((MAP_BOUNDS.maxLat - lat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * imgHeight;
+    return { x, y };
+}
+
+function pixelToLatLon(x, y, imgWidth, imgHeight) {
+    const lon = MAP_BOUNDS.minLon + (x / imgWidth) * (MAP_BOUNDS.maxLon - MAP_BOUNDS.minLon);
+    const lat = MAP_BOUNDS.maxLat - (y / imgHeight) * (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat);
+    return { lat, lon };
+}
+
+// CSV name to display name mapping
+const csvToDisplayName = {
+    'малый енисей (сарыг-сеп)': 'Малый Енисей (село Сарыг-Сеп)',
+    'Большой Енисей (Тоора-Хем)': 'Большой Енисей (село Тоора-Хем)',
+    'енисей (кызыл)': 'Енисей (г. Кызыл)',
+    'саяно-шушенская гэс': 'Енисей (Саяно-Шушенская ГЭС)',
+    'Абакан (Абаза)': 'Абакан (г. Абаза)',
+    'усть-шадат, гм.п.Усть-Шадат': 'Шадат (посёлок Усть-Шадат)',
+    'Кизир (с Имисское)': 'Кизир (село Имисское)',
+    'красноярская гэс': 'Енисей (Красноярская ГЭС)',
+    'кан (канск)': 'Кан (г. Канск)',
+    'Енисей (пгт Стрелка)': 'Енисей (пгт Стрелка)',
+    'Большой Пит (пос Брянка)': 'Большой Пит (посёлок Брянка)',
+    'Кас (пос Александровский шлюз)': 'Кас (посёлок Александровский шлюз)',
+    'Енисей (с Назимово)': 'Енисей (село Назимово)',
+    'ванавара (подкаменная тунгуска)': 'Подкаменная Тунгуска (село Ванавара)',
+    'вельмо': 'Вельмо (посёлок Вельмо)',
+    'Муторай (р Чуня)': 'Чуня (посёлок Муторай)',
+    'таймура (кербо)': 'Таймура (упразднённое село Кербо)',
+    'енисей д Бахта': 'Енисей (деревня Бахта)',
+    'нижняя тунгуска (пгт тура)': 'Нижняя Тунгуска (пгт Тура)',
+    'нижняя тунгуска (учами)': 'Нижняя Тунгуска (посёлок Учами)',
+    'енисей (Потапово)': 'Енисей (село Потапово)',
+    'Енисей (Дудинка)': 'Енисей (г. Дудинка)',
+    'байкит р подкаменная тунгуска': 'Подкаменная Тунгуска (село Байкит)',
+    'громадск - рыбная': 'Рыбная (посёлок Громадск)',
+    'игарка енисей': 'Енисей (г. Игарка)',
+    'Майнская ГЭС р енисей': 'Енисей( Майнская ГЭС)',
+    'матур р матур': 'Матур (село Матур)',
+    'минусинск р минусинка': 'Минусинка (г. Минусинск)',
+    'караул р енисей': 'Енисей (село Караул)',
+    'петропавловка-1 р агул': 'Агул (деревня Петропавловка-1)',
+    'токма р непа': 'Непа (село Токма)',
+    'пгт тея р тея': 'Тея (пгт Тея)',
+    'пионерский лагерь р калтат': 'Калтат (гидропост Пионерский Лагерь)',
+    'янов стан р турухан': 'Турухан (посёлок Янов Стан)',
+    'шалаболино р шушь': 'Шушь (село Шалаболино)',
+    'отрок р сыда': 'Сыда (село Отрок)',
+    'таштып р таштып': 'Таштып (село Таштып)',
+    'сандакчес р дубчес': 'Дубчес (посёлок Сандакчес)',
+    'сизим р мизин': 'Мизин (село Сизим)',
+    'эрзин р эрзин': 'Эрзин (село Эрзин)',
+    'сым р сым': 'Сым (село Сым)',
+    'деген р деген': 'Деген (гидропост Деген)',
+    'большой порог р нижняя тунгуска': 'Нижняя Тунгуска (гидропост Большой Порог)',
+    'кузьмовка подкаменная тунгуска': 'Подкаменная Тунгуска (посёлок Кузьмовка)',
+    'снежногорск р хантайка': 'Хантайка (пгт Снежногорск)',
+    'селиваниха р енисей': 'Енисей (посёлок Селиваниха)',
+    'григорьевка р кебеж': 'Кебеж (село Григорьевка)',
+    'ильинка р кунгус': 'Кунгус (село Ильинка)',
+    'кислокан р тунгуска': 'Тунгуска (посёлок Кислокан)'
+};
+
+async function loadCSVData() {
+    try {
+        // Load hydroposts from CSV
+        const csvResponse = await fetch('hydroposts.csv');
+        const csvText = await csvResponse.text();
+        const lines = csvText.trim().split('\n');
+
+        hydroposts = lines.map((line, index) => {
+            const parts = line.split(',');
+            if (parts.length >= 3) {
+                const csvName = parts[0].trim();
+                const lat = parseFloat(parts[1].trim());
+                const lon = parseFloat(parts[2].trim());
+                const displayName = csvToDisplayName[csvName] || csvName;
+                return { id: index, name: displayName, csvName, lat, lon };
+            }
+            return null;
+        }).filter(p => p !== null && p.lat !== 0 && p.lon !== 0);
+
+        console.log(`Loaded ${hydroposts.length} hydroposts`);
+
+        // Load level data from text files
+        await loadLevelData();
+
+        document.getElementById('loading').style.display = 'none';
+        renderMap();
+    } catch (err) {
+        console.error('Could not load data:', err);
+        document.getElementById('loading').textContent = 'Error loading data';
+    }
+}
+
+async function loadLevelData() {
+    // Get list of level files from the levels directory
+    // We'll try to load each level file that matches hydropost names
+    for (const point of hydroposts) {
+        // Use csvName for level file lookup, but store keyed by display name
+        const levelKey = findLevelFileName(point.name);
+        if (levelKey) {
+            try {
+                const response = await fetch(`levels/${encodeURIComponent(levelKey)}.txt`);
+                if (response.ok) {
+                    const text = await response.text();
+                    const values = text.trim().split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (values.length > 0) {
+                        levels[point.name] = {
+                            values: values,
+                            min: Math.min(...values),
+                            max: Math.max(...values),
+                            length: values.length
+                        };
+                    }
+                }
+            } catch (e) {
+                // Ignore missing files
+            }
+        }
+    }
+    console.log(`Loaded ${Object.keys(levels).length} level datasets`);
+}
+
+function findLevelFileName(hydropostName) {
+    // Level files mapping - matches display names to level file names
+    const nameMap = {
+        'Малый Енисей (село Сарыг-Сеп)': 'малый енисей (сарыг-сеп)',
+        'Большой Енисей (село Тоора-Хем)': 'Большой Енисей (Тоора-Хем)',
+        'Енисей (г. Кызыл)': 'енисей (кызыл)',
+        'Енисей (Саяно-Шушенская ГЭС)': 'саяно-шушенская гэс',
+        'Абакан (г. Абаза)': 'Абакан (Абаза)',
+        'Шадат (посёлок Усть-Шадат)': 'усть-шадат',
+        'Кизир (село Имисское)': 'Кизир (с Имисское)',
+        'Енисей (Красноярская ГЭС)': 'красноярская гэс',
+        'Кан (г. Канск)': 'кан (канск)',
+        'Енисей (пгт Стрелка)': 'Енисей (пгт Стрелка)',
+        'Большой Пит (посёлок Брянка)': 'Большой Пит (пос Брянка)',
+        'Кас (посёлок Александровский шлюз)': 'Кас (пос Александровский шлюз)',
+        'Енисей (село Назимово)': 'Енисей (с Назимово)',
+        'Подкаменная Тунгуска (село Ванавара)': 'ванавара (подкаменная тунгуска)',
+        'Вельмо (посёлок Вельмо)': 'вельмо',
+        'Чуня (посёлок Муторай)': 'Муторай (р Чуня)',
+        'Таймура (упразднённое село Кербо)': 'таймура (кербо)',
+        'Енисей (деревня Бахта)': 'енисей д Бахта',
+        'Нижняя Тунгуска (пгт Тура)': 'нижняя тунгуска (пгт тура)',
+        'Нижняя Тунгуска (посёлок Учами)': 'нижняя тунгуска (учами)',
+        'Енисей (село Потапово)': 'енисей (Потапово)',
+        'Енисей (г. Дудинка)': 'Енисей (Дудинка)',
+        'Подкаменная Тунгуска (село Байкит)': 'байкит р подкаменная тунгуска',
+        'Рыбная (посёлок Громадск)': 'громадск - рыбная',
+        'Енисей (г. Игарка)': 'игарка енисей',
+        'Енисей( Майнская ГЭС)': 'Майнская ГЭС р енисей',
+        'Матур (село Матур)': 'матур р матур',
+        'Минусинка (г. Минусинск)': 'минусинск р минусинка',
+        'Енисей (село Караул)': 'караул р енисей',
+        'Агул (деревня Петропавловка-1)': 'петропавловка-1 р агул',
+        'Непа (село Токма)': 'токма р непа',
+        'Тея (пгт Тея)': 'пгт тея р тея',
+        'Калтат (гидропост Пионерский Лагерь)': 'пионерский лагерь р калтат',
+        'Турухан (посёлок Янов Стан)': 'янов стан р турухан',
+        'Шушь (село Шалаболино)': 'шалаболино р шушь',
+        'Сыда (село Отрок)': 'отрок р сыда',
+        'Таштып (село Таштып)': 'таштып р таштып',
+        'Дубчес (посёлок Сандакчес)': 'сандакчес р дубчес',
+        'Мизин (село Сизим)': 'сизим р мизин',
+        'Эрзин (село Эрзин)': 'эрзин р эрзин',
+        'Сым (село Сым)': 'сым р сым',
+        'Деген (гидропост Деген)': 'деген р деген',
+        'Нижняя Тунгуска (гидропост Большой Порог)': 'большой порог р нижняя тунгуска',
+        'Подкаменная Тунгуска (посёлок Кузьмовка)': 'кузьмовка подкаменная тунгуска',
+        'Хантайка (пгт Снежногорск)': 'снежногорск р хантайка',
+        'Енисей (посёлок Селиваниха)': 'селиваниха р енисей',
+        'Кебеж (село Григорьевка)': 'григорьевка р кебеж',
+        'Кунгус (село Ильинка)': 'ильинка р кунгус',
+        'Тунгуска (посёлок Кислокан)': 'кислокан р тунгуска'
+    };
+
+    return nameMap[hydropostName] || null;
+}
+
+function renderMap() {
+    mapImage.onload = () => {
+        const imgWidth = mapImage.naturalWidth;
+        const imgHeight = mapImage.naturalHeight;
+
+        // Clear existing markers
+        document.querySelectorAll('.point-marker').forEach(m => m.remove());
+
+        hydroposts.forEach(point => {
+            if (point.lat === 0 && point.lon === 0) return;
+
+            const pixel = latLonToPixel(point.lat, point.lon, imgWidth, imgHeight);
+            const marker = document.createElement('div');
+            marker.className = 'point-marker';
+            marker.style.left = pixel.x + 'px';
+            marker.style.top = pixel.y + 'px';
+            marker.title = point.name;
+            marker.dataset.name = point.name;
+            marker.onclick = (e) => {
+                e.stopPropagation();
+                selectPoint(point);
+            };
+            mapContainer.appendChild(marker);
+        });
+    };
+
+    // Trigger onload if image already loaded
+    if (mapImage.complete) {
+        mapImage.onload();
+    }
+}
+
+function selectPoint(point) {
+    selectedPoint = point;
+    document.getElementById('point-name').textContent = point.name;
+    document.getElementById('point-coords').textContent = `Lat: ${point.lat.toFixed(4)}, Lon: ${point.lon.toFixed(4)}`;
+    drawLevelChart(point);
+    document.getElementById('info-panel').classList.add('visible');
+}
+
+function closeInfoPanel() {
+    document.getElementById('info-panel').classList.remove('visible');
+    // Stop sound when closing panel
+    soundGen.stop();
+    selectedPoint = null;
+}
+
+function drawLevelChart(point) {
+    const canvas = document.getElementById('level-chart');
+    const ctx = canvas.getContext('2d');
+    const levelData = levels[point.name];
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = 120 * dpr;
+    ctx.scale(dpr, dpr);
+    canvas.style.width = canvas.clientWidth + 'px';
+    canvas.style.height = '120px';
+
+    ctx.clearRect(0, 0, canvas.width / dpr, 120);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, canvas.width / dpr, 120);
+
+    if (!levelData || !levelData.values || levelData.values.length === 0) {
+        ctx.fillStyle = '#ff5252';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No level data available', canvas.width / dpr / 2, 60);
+        return;
+    }
+
+    const values = levelData.values;
+    const maxVal = Math.max(...values);
+    const minVal = Math.min(...values);
+    const width = canvas.width / dpr;
+    const height = 120;
+
+    // Draw grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = 10 + i * 25;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+
+    // Draw line chart
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    values.forEach((val, i) => {
+        const x = (i / values.length) * width;
+        const y = height - 10 - ((val - minVal) / (maxVal - minVal + 0.001)) * (height - 20);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Draw fill
+    ctx.fillStyle = 'rgba(79, 179, 247, 0.2)';
+    ctx.lineTo(width, height);
+    ctx.lineTo(0, height);
+    ctx.closePath();
+    ctx.fill();
+
+}
+
+// Sound generation - ported from sound_gen.py
+class SoundGenerator {
+    constructor() {
+        this.audioContext = null;
+        this.currentSource = null;
+    }
+
+    initAudio() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    // Optimized: generate sound directly without huge intermediate arrays
+    generateSound(rivRelLvl) {
+        this.initAudio();
+
+        const l = Math.floor(Math.random() * 11) + 1;
+        const r = Math.floor(Math.random() * 17) + 1;
+        const left = Math.min(l, r);
+        const right = Math.max(l, r);
+
+        // Generate at 44100Hz directly, targeting ~5 seconds of audio
+        const targetRate = 44100;
+        const targetDuration = 5.0; // seconds
+        const totalSamples = Math.round(targetRate * targetDuration);
+
+        // Use the input data to modulate the harmonics
+        // We'll create an envelope from the input data
+        const nHarmonics = right - left;
+
+        // Downsample or interpolate input to match target duration
+        const inputLen = rivRelLvl.length;
+        const envelope = new Float32Array(totalSamples);
+        for (let i = 0; i < totalSamples; i++) {
+            const srcIdx = (i / totalSamples) * (inputLen - 1);
+            const idx = Math.floor(srcIdx);
+            const frac = srcIdx - idx;
+            if (idx + 1 < inputLen) {
+                envelope[i] = rivRelLvl[idx] * (1 - frac) + rivRelLvl[idx + 1] * frac;
+            } else {
+                envelope[i] = rivRelLvl[idx];
+            }
+        }
+
+        // Generate directly into final buffer
+        let sumHmRiv = new Float32Array(totalSamples);
+
+        for (let h = 0; h < nHarmonics; h++) {
+            const freq = left + h;
+            for (let i = 0; i < totalSamples; i++) {
+                sumHmRiv[i] += envelope[i] * Math.sin(freq * Math.PI * 2 * (i / targetRate));
+            }
+        }
+
+        // Find min/max without spreading (avoids stack overflow on large arrays)
+        let maxVal = -Infinity;
+        let minVal = Infinity;
+        for (let i = 0; i < sumHmRiv.length; i++) {
+            const v = sumHmRiv[i];
+            if (v > maxVal) maxVal = v;
+            if (v < minVal) minVal = v;
+        }
+
+        if (minVal < 0 && maxVal - Math.abs(minVal) > maxVal * 0.7) {
+            sumHmRiv = sumHmRiv.map(v => v > 0 ? v / (v / (maxVal / Math.abs(minVal))) : v);
+        } else {
+            sumHmRiv = sumHmRiv.map(v => v / Math.abs(maxVal));
+        }
+
+        // Find new max
+        maxVal = -Infinity;
+        for (let i = 0; i < sumHmRiv.length; i++) {
+            if (sumHmRiv[i] > maxVal) maxVal = sumHmRiv[i];
+        }
+        sumHmRiv = sumHmRiv.map(v => v / maxVal);
+
+        // Web Audio API expects float values in [-1, 1], not 16-bit integers (but I do not care much because all exceeding peaks would be clipped anyways)
+        const audioData = sumHmRiv.map(v => v * 1.9); // trick for 'hearable' pitch
+        //const audioData = sumHmRiv;
+
+        const buffer = this.audioContext.createBuffer(1, audioData.length, 44100);
+        buffer.getChannelData(0).set(audioData);
+        return buffer;
+    }
+
+    play(buffer) {
+        // Stop any currently playing sound
+        if (this.currentSource) {
+            try {
+                this.currentSource.stop();
+            } catch (e) {
+                // Ignore errors if already stopped
+            }
+        }
+        this.currentSource = this.audioContext.createBufferSource();
+        this.currentSource.buffer = buffer;
+        this.currentSource.connect(this.audioContext.destination);
+        this.currentSource.start();
+
+        // Clear reference when done
+        this.currentSource.onended = () => {
+            this.currentSource = null;
+        };
+    }
+
+    stop() {
+        if (this.currentSource) {
+            try {
+                // Ensure AudioContext is running before stopping
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                this.currentSource.stop();
+            } catch (e) {
+                // Ignore errors if already stopped
+            }
+            this.currentSource = null;
+        }
+    }
+}
+
+const soundGen = new SoundGenerator();
+
+async function playSound() {
+    if (!selectedPoint) return;
+    const levelData = levels[selectedPoint.name];
+    if (!levelData || !levelData.values || levelData.values.length === 0) {
+        alert('No level data available for this point');
+        return;
+    }
+
+    // Ensure AudioContext is initialized and resumed before generating sound
+    soundGen.initAudio();
+    if (soundGen.audioContext && soundGen.audioContext.state === 'suspended') {
+        await soundGen.audioContext.resume();
+    }
+
+    const values = levelData.values;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    // const normalized = values.map(v => (v - min) / (max - min) * 2 - 1);
+    const normalized = values.map(v => v / (max - min) * 3 - 1);
+    const buffer = soundGen.generateSound(normalized);
+    //const buffer = values.map(v => (v - min) / (max - min) );
+
+    soundGen.play(buffer);
+}
+
+// --- Event handlers ---
+
+// Pan with mouse drag
+mapWrapper.addEventListener('mousedown', (e) => {
+    if (e.target === mapImage || e.target === mapContainer || e.target === mapWrapper) {
+        isPanning = true;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        mapWrapper.style.cursor = 'grabbing';
+    }
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    translateX += e.clientX - lastPanX;
+    translateY += e.clientY - lastPanY;
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+    updateTransform();
+});
+
+window.addEventListener('mouseup', () => {
+    isPanning = false;
+    mapWrapper.style.cursor = 'grab';
+});
+
+// Zoom with wheel (Shift + wheel or just wheel)
+mapWrapper.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.shiftKey || e.ctrlKey) {
+        zoom(e.deltaY > 0 ? 0.9 : 1.1, e.clientX, e.clientY);
+    } else {
+        // Pan vertically with wheel
+        translateY -= e.deltaY;
+        updateTransform();
+    }
+}, { passive: false });
+
+// Zoom controls
+document.getElementById('zoom-in').onclick = () => {
+    const rect = mapWrapper.getBoundingClientRect();
+    zoom(1.2, rect.left + rect.width/2, rect.top + rect.height/2);
+};
+document.getElementById('zoom-out').onclick = () => {
+    const rect = mapWrapper.getBoundingClientRect();
+    zoom(0.83, rect.left + rect.width/2, rect.top + rect.height/2);
+};
+document.getElementById('reset-view').onclick = resetView;
+
+// Double-click to reset
+mapWrapper.addEventListener('dblclick', resetView);
+
+// Touch support for mobile
+let lastTouchDist = 0;
+mapWrapper.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+        isPanning = true;
+        lastPanX = e.touches[0].clientX;
+        lastPanY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+        isPanning = false;
+        lastTouchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+    }
+}, { passive: false });
+
+mapWrapper.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && isPanning) {
+        translateX += e.touches[0].clientX - lastPanX;
+        translateY += e.touches[0].clientY - lastPanY;
+        lastPanX = e.touches[0].clientX;
+        lastPanY = e.touches[0].clientY;
+        updateTransform();
+    } else if (e.touches.length === 2) {
+        const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (lastTouchDist > 0) {
+            const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            zoom(dist / lastTouchDist, centerX, centerY);
+        }
+        lastTouchDist = dist;
+    }
+}, { passive: false });
+
+mapWrapper.addEventListener('touchend', () => {
+    isPanning = false;
+    lastTouchDist = 0;
+});
+
+// Close panel on map click
+mapWrapper.addEventListener('click', (e) => {
+    if (e.target === mapImage || e.target === mapContainer || e.target === mapWrapper) {
+        closeInfoPanel();
+    }
+});
+
+// Load data
+window.onload = loadCSVData;
+</script>
+</body>
+</html>
