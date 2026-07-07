@@ -7,20 +7,28 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            height: 100vh;
-            overflow: hidden;
+            /* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; */
+            font-family: 'Courier New', Courier, monospace;
+            background: #000000;
+            color: #f3f3f3;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Main layout */
         #app {
-            display: flex;
-            height: 100vh;
+            display: block;
+            width: 100%;
+            min-height: 100vh;
         }
 
         #map-wrapper {
-            flex: 1;
+            width: 100%;
+            max-width: 100%;
+            min-height: 100vh;
             position: relative;
             overflow: hidden;
             background: #111;
@@ -203,6 +211,49 @@
             border: 1px solid rgba(79, 195, 247, 0.3);
         }
 
+        /* Intro panel */
+        #intro-panel {
+            width: 100%;
+            overflow: visible;
+            padding: 22px 24px 20px;
+            background: rgba(0, 0, 0, 0.94);
+            color: #f3f3f3;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 10px 32px rgba(0,0,0,0.35);
+            line-height: 1.55;
+            font-size: 0.96rem;
+            z-index: 1200;
+            flex-shrink: 0;
+        }
+
+        #intro-panel h1 {
+            font-size: 1.04rem;
+            margin-bottom: 12px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        #intro-panel p {
+            margin: 0 0 10px;
+        }
+
+        #intro-panel blockquote {
+            margin: 10px 0 12px 0;
+            padding-left: 14px;
+            border-left: 2px solid rgba(255,255,255,0.35);
+            color: #d8d8d8;
+            font-style: italic;
+        }
+
+        #intro-panel a {
+            color: #4fc3f7;
+            text-decoration: none;
+        }
+
+        #intro-panel a:hover {
+            text-decoration: underline;
+        }
+
         /* Loading */
         #loading {
             position: fixed;
@@ -220,6 +271,24 @@
 </head>
 <body>
     <div id="loading">Loading map data...</div>
+
+    <div id="intro-panel">
+        <h1>Речные песни</h1>
+        <p>Проект на основе данных научных наблюдений, в котором звучат сибирские реки.</p>
+
+        <blockquote>
+            мы обогащаемся, уча иностранный язык — но это удивительная случайность, ведь учим мы его не потому, что не можем выразиться, а потому, что наш собеседник говорит только на нём. находя новый канал коммуникации, мы преодолеваем лимитность другого; и так природа преодолевает ограниченность человека в её понимании, когда обретает голос, различимый, воспринимаемый человеческим существом.<br>
+            из вкладыша в кассету к альбому «Речные песни»
+        </blockquote>
+        <p>Я предлагаю интерактивную карту, где можно послушать, что случалось с реками Енисейского бассейна за четверть века. Звук сгенерирован по архиву данных уровня рек Енисейского бассейна в 2002–2026. Годовой ход уровня складывается из сезонных колебаний (весенние паводки, зимние и летние межени) и синоптических — быстрой реакции рек на внешние события. Вместе они рассказывают о многолетних тенденциях в жизни реки вместе с минутной суетой.</p>
+        <p>Все природные черты и динамика в звуке нетронуты, потому что природный феномен не нуждается в очеловечивании или трактовке, нет необходимости вмешиваться в него композиторством: и процесс, и звук самоценны вне выстраивания отношений человека с ним.</p>
+        <p>Технически это вычисленный звук, который производил бы осциллятор, если бы колебался по закону хода уровня рек Енисейского бассейна на выбранных гидрологических постах.</p>
+        <p>В рамках этой работы выпущен альбом, для создания которого я использовала больше техник алгоритмического синтеза звука из данных гидропостов.</p> 
+        <p>Альбом можно послушать на:<br>
+        Бэндкэмпе: <a href="https://shlms.bandcamp.com/album/-" target="_blank" rel="noopener noreferrer">https://shlms.bandcamp.com/album/-</a><br>
+        Ютубе: <a href="https://youtu.be/ilWTYEJtL2U" target="_blank" rel="noopener noreferrer">https://youtu.be/ilWTYEJtL2U</a></p>
+        <p>Меня зовут Саша Сойфер, следить за другими моими проектами можно в <a href="https://www.instagram.com/shulamis_" target="_blank" rel="noopener noreferrer">инстаграме</a> и <a href="https://t.me/shulamis" target="_blank" rel="noopener noreferrer">телеграме</a> shulamis.</p>
+    </div>
 
     <div id="app">
         <div id="map-wrapper">
@@ -245,6 +314,7 @@
         <p><button class="btn" onclick="playSound()">Play Sound</button></p>
     </div>
 
+    <script src="data.js"></script>
     <script>
 // Hydropost data
 let hydroposts = [];
@@ -266,6 +336,7 @@ let translateY = 0;
 let isPanning = false;
 let lastPanX = 0;
 let lastPanY = 0;
+let wrapperHeightLocked = false;
 
 // DOM elements
 const mapContainer = document.getElementById('map-container');
@@ -273,11 +344,28 @@ const mapWrapper = document.getElementById('map-wrapper');
 const mapImage = document.getElementById('map-image');
 const zoomDisplay = document.getElementById('zoom-display');
 
+function updateMapWrapperHeight(force = false) {
+    if (!mapImage.naturalWidth || !mapImage.naturalHeight) {
+        mapWrapper.style.height = '100vh';
+        return;
+    }
+
+    if (!force && wrapperHeightLocked) {
+        return;
+    }
+
+    const scaledHeight = mapImage.naturalHeight * scale;
+    const viewportHeight = window.innerHeight;
+    mapWrapper.style.height = `${Math.max(viewportHeight, Math.ceil(scaledHeight))}px`;
+    wrapperHeightLocked = true;
+}
+
 function updateTransform() {
     // Clamp translation to keep map within viewport
     clampTranslation();
     mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
     zoomDisplay.textContent = Math.round(scale * 100) + '%';
+    updateMapWrapperHeight();
 }
 
 function clampTranslation() {
@@ -313,31 +401,40 @@ function clampTranslation() {
     translateY = Math.max(minTy, Math.min(maxTy, translateY));
 }
 
-function zoom(delta, centerX, centerY) {
+function zoom(delta, centerX = null, centerY = null) {
     const rect = mapWrapper.getBoundingClientRect();
-    const mouseX = centerX - rect.left;
-    const mouseY = centerY - rect.top;
+    const targetX = centerX === null ? rect.width / 2 : centerX - rect.left;
+    const targetY = centerY === null ? rect.height / 2 : centerY - rect.top;
 
-    // Calculate minimum scale to fit map width to wrapper
+    // Calculate minimum scale to fit the visible viewport
     const minScale = Math.max(
         rect.width / mapImage.naturalWidth,
-        rect.height / mapImage.naturalHeight
+        window.innerHeight / mapImage.naturalHeight
     );
     const newScale = Math.max(minScale, Math.min(5, scale * delta));
     const scaleRatio = newScale / scale;
 
-    // Zoom towards mouse position
-    translateX = mouseX - (mouseX - translateX) * scaleRatio;
-    translateY = mouseY - (mouseY - translateY) * scaleRatio;
+    // Keep the current viewport center stable while zooming
+    translateX = targetX - (targetX - translateX) * scaleRatio;
+    translateY = targetY - (targetY - translateY) * scaleRatio;
 
     scale = newScale;
     updateTransform();
 }
 
+function getInitialScale() {
+    if (!mapImage.naturalWidth) return 0.85;
+    const wrapperWidth = mapWrapper.getBoundingClientRect().width || window.innerWidth;
+    const widthScale = wrapperWidth / mapImage.naturalWidth;
+    return Math.min(1, Math.max(0.2, widthScale));
+}
+
 function resetView() {
-    scale = 0.85;
+    scale = getInitialScale();
     translateX = 0;
     translateY = 0;
+    wrapperHeightLocked = false;
+    updateMapWrapperHeight(true);
     updateTransform();
 }
 
@@ -380,7 +477,7 @@ const csvToDisplayName = {
     'байкит р подкаменная тунгуска': 'Подкаменная Тунгуска (село Байкит)',
     'громадск - рыбная': 'Рыбная (посёлок Громадск)',
     'игарка енисей': 'Енисей (г. Игарка)',
-    'Майнская ГЭС р енисей': 'Енисей( Майнская ГЭС)',
+    'Майнская ГЭС р енисей': 'Енисей (Майнская ГЭС)',
     'матур р матур': 'Матур (село Матур)',
     'минусинск р минусинка': 'Минусинка (г. Минусинск)',
     'караул р енисей': 'Енисей (село Караул)',
@@ -408,27 +505,27 @@ const csvToDisplayName = {
 
 async function loadCSVData() {
     try {
-        // Load hydroposts from CSV
-        const csvResponse = await fetch('hydroposts.csv');
-        const csvText = await csvResponse.text();
-        const lines = csvText.trim().split('\n');
+        const data = window.embeddedData;
+        if (!data || !Array.isArray(data.hydroposts)) {
+            throw new Error('Embedded data not available');
+        }
 
-        hydroposts = lines.map((line, index) => {
-            const parts = line.split(',');
-            if (parts.length >= 3) {
-                const csvName = parts[0].trim();
-                const lat = parseFloat(parts[1].trim());
-                const lon = parseFloat(parts[2].trim());
-                const displayName = csvToDisplayName[csvName] || csvName;
-                return { id: index, name: displayName, csvName, lat, lon };
-            }
-            return null;
-        }).filter(p => p !== null && p.lat !== 0 && p.lon !== 0);
+        hydroposts = data.hydroposts
+            .map((point, index) => {
+                if (!point || (point.lat === 0 && point.lon === 0)) return null;
+                return {
+                    id: index,
+                    name: point.name,
+                    csvName: point.name,
+                    lat: point.lat,
+                    lon: point.lon
+                };
+            })
+            .filter(Boolean);
 
+        levels = data.levels || {};
         console.log(`Loaded ${hydroposts.length} hydroposts`);
-
-        // Load level data from text files
-        await loadLevelData();
+        console.log(`Loaded ${Object.keys(levels).length} level datasets`);
 
         document.getElementById('loading').style.display = 'none';
         renderMap();
@@ -436,92 +533,6 @@ async function loadCSVData() {
         console.error('Could not load data:', err);
         document.getElementById('loading').textContent = 'Error loading data';
     }
-}
-
-async function loadLevelData() {
-    // Get list of level files from the levels directory
-    // We'll try to load each level file that matches hydropost names
-    for (const point of hydroposts) {
-        // Use csvName for level file lookup, but store keyed by display name
-        const levelKey = findLevelFileName(point.name);
-        if (levelKey) {
-            try {
-                const response = await fetch(`levels/${encodeURIComponent(levelKey)}.txt`);
-                if (response.ok) {
-                    const text = await response.text();
-                    const values = text.trim().split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
-                    if (values.length > 0) {
-                        levels[point.name] = {
-                            values: values,
-                            min: Math.min(...values),
-                            max: Math.max(...values),
-                            length: values.length
-                        };
-                    }
-                }
-            } catch (e) {
-                // Ignore missing files
-            }
-        }
-    }
-    console.log(`Loaded ${Object.keys(levels).length} level datasets`);
-}
-
-function findLevelFileName(hydropostName) {
-    // Level files mapping - matches display names to level file names
-    const nameMap = {
-        'Малый Енисей (село Сарыг-Сеп)': 'малый енисей (сарыг-сеп)',
-        'Большой Енисей (село Тоора-Хем)': 'Большой Енисей (Тоора-Хем)',
-        'Енисей (г. Кызыл)': 'енисей (кызыл)',
-        'Енисей (Саяно-Шушенская ГЭС)': 'саяно-шушенская гэс',
-        'Абакан (г. Абаза)': 'Абакан (Абаза)',
-        'Шадат (посёлок Усть-Шадат)': 'усть-шадат',
-        'Кизир (село Имисское)': 'Кизир (с Имисское)',
-        'Енисей (Красноярская ГЭС)': 'красноярская гэс',
-        'Кан (г. Канск)': 'кан (канск)',
-        'Енисей (пгт Стрелка)': 'Енисей (пгт Стрелка)',
-        'Большой Пит (посёлок Брянка)': 'Большой Пит (пос Брянка)',
-        'Кас (посёлок Александровский шлюз)': 'Кас (пос Александровский шлюз)',
-        'Енисей (село Назимово)': 'Енисей (с Назимово)',
-        'Подкаменная Тунгуска (село Ванавара)': 'ванавара (подкаменная тунгуска)',
-        'Вельмо (посёлок Вельмо)': 'вельмо',
-        'Чуня (посёлок Муторай)': 'Муторай (р Чуня)',
-        'Таймура (упразднённое село Кербо)': 'таймура (кербо)',
-        'Енисей (деревня Бахта)': 'енисей д Бахта',
-        'Нижняя Тунгуска (пгт Тура)': 'нижняя тунгуска (пгт тура)',
-        'Нижняя Тунгуска (посёлок Учами)': 'нижняя тунгуска (учами)',
-        'Енисей (село Потапово)': 'енисей (Потапово)',
-        'Енисей (г. Дудинка)': 'Енисей (Дудинка)',
-        'Подкаменная Тунгуска (село Байкит)': 'байкит р подкаменная тунгуска',
-        'Рыбная (посёлок Громадск)': 'громадск - рыбная',
-        'Енисей (г. Игарка)': 'игарка енисей',
-        'Енисей( Майнская ГЭС)': 'Майнская ГЭС р енисей',
-        'Матур (село Матур)': 'матур р матур',
-        'Минусинка (г. Минусинск)': 'минусинск р минусинка',
-        'Енисей (село Караул)': 'караул р енисей',
-        'Агул (деревня Петропавловка-1)': 'петропавловка-1 р агул',
-        'Непа (село Токма)': 'токма р непа',
-        'Тея (пгт Тея)': 'пгт тея р тея',
-        'Калтат (гидропост Пионерский Лагерь)': 'пионерский лагерь р калтат',
-        'Турухан (посёлок Янов Стан)': 'янов стан р турухан',
-        'Шушь (село Шалаболино)': 'шалаболино р шушь',
-        'Сыда (село Отрок)': 'отрок р сыда',
-        'Таштып (село Таштып)': 'таштып р таштып',
-        'Дубчес (посёлок Сандакчес)': 'сандакчес р дубчес',
-        'Мизин (село Сизим)': 'сизим р мизин',
-        'Эрзин (село Эрзин)': 'эрзин р эрзин',
-        'Сым (село Сым)': 'сым р сым',
-        'Деген (гидропост Деген)': 'деген р деген',
-        'Нижняя Тунгуска (гидропост Большой Порог)': 'большой порог р нижняя тунгуска',
-        'Подкаменная Тунгуска (посёлок Кузьмовка)': 'кузьмовка подкаменная тунгуска',
-        'Хантайка (пгт Снежногорск)': 'снежногорск р хантайка',
-        'Енисей (посёлок Селиваниха)': 'селиваниха р енисей',
-        'Кебеж (село Григорьевка)': 'григорьевка р кебеж',
-        'Кунгус (село Ильинка)': 'ильинка р кунгус',
-        'Тунгуска (посёлок Кислокан)': 'кислокан р тунгуска'
-    };
-
-    return nameMap[hydropostName] || null;
 }
 
 function renderMap() {
@@ -548,6 +559,8 @@ function renderMap() {
             };
             mapContainer.appendChild(marker);
         });
+
+        resetView();
     };
 
     // Trigger onload if image already loaded
@@ -711,7 +724,7 @@ class SoundGenerator {
         sumHmRiv = sumHmRiv.map(v => v / maxVal);
 
         // Web Audio API expects float values in [-1, 1], not 16-bit integers (but I do not care much because all exceeding peaks would be clipped anyways)
-        const audioData = sumHmRiv.map(v => v * 1.9); // trick for 'hearable' pitch
+        const audioData = sumHmRiv.map(v => v * 2.9); // trick for 'hearable' pitch
         //const audioData = sumHmRiv;
 
         const buffer = this.audioContext.createBuffer(1, audioData.length, 44100);
@@ -720,37 +733,34 @@ class SoundGenerator {
     }
 
     play(buffer) {
-        // Stop any currently playing sound
-        if (this.currentSource) {
-            try {
-                this.currentSource.stop();
-            } catch (e) {
-                // Ignore errors if already stopped
-            }
-        }
+        this.stop();
+
         this.currentSource = this.audioContext.createBufferSource();
         this.currentSource.buffer = buffer;
         this.currentSource.connect(this.audioContext.destination);
         this.currentSource.start();
 
-        // Clear reference when done
-        this.currentSource.onended = () => {
-            this.currentSource = null;
+        const source = this.currentSource;
+        source.onended = () => {
+            if (this.currentSource === source) {
+                this.currentSource = null;
+            }
         };
     }
 
     stop() {
-        if (this.currentSource) {
+        const source = this.currentSource;
+        this.currentSource = null;
+        if (source) {
             try {
                 // Ensure AudioContext is running before stopping
                 if (this.audioContext && this.audioContext.state === 'suspended') {
                     this.audioContext.resume();
                 }
-                this.currentSource.stop();
+                source.stop();
             } catch (e) {
                 // Ignore errors if already stopped
             }
-            this.currentSource = null;
         }
     }
 }
@@ -808,28 +818,17 @@ window.addEventListener('mouseup', () => {
     mapWrapper.style.cursor = 'grab';
 });
 
-// Zoom with wheel (Shift + wheel or just wheel)
-mapWrapper.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (e.shiftKey || e.ctrlKey) {
-        zoom(e.deltaY > 0 ? 0.9 : 1.1, e.clientX, e.clientY);
-    } else {
-        // Pan vertically with wheel
-        translateY -= e.deltaY;
-        updateTransform();
-    }
-}, { passive: false });
+// Zoom controls only
+function zoomByButtons(direction) {
+    const rect = mapWrapper.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    zoom(direction > 0 ? 1.2 : 0.83, centerX, centerY);
+}
 
-// Zoom controls
-document.getElementById('zoom-in').onclick = () => {
-    const rect = mapWrapper.getBoundingClientRect();
-    zoom(1.2, rect.left + rect.width/2, rect.top + rect.height/2);
-};
-document.getElementById('zoom-out').onclick = () => {
-    const rect = mapWrapper.getBoundingClientRect();
-    zoom(0.83, rect.left + rect.width/2, rect.top + rect.height/2);
-};
-document.getElementById('reset-view').onclick = resetView;
+document.getElementById('zoom-in').addEventListener('click', () => zoomByButtons(1));
+document.getElementById('zoom-out').addEventListener('click', () => zoomByButtons(-1));
+document.getElementById('reset-view').addEventListener('click', resetView);
 
 // Double-click to reset
 mapWrapper.addEventListener('dblclick', resetView);
@@ -886,6 +885,13 @@ mapWrapper.addEventListener('click', (e) => {
 
 // Load data
 window.onload = loadCSVData;
+window.addEventListener('resize', () => {
+    if (mapImage.complete) {
+        wrapperHeightLocked = false;
+        updateMapWrapperHeight(true);
+        updateTransform();
+    }
+});
 </script>
 </body>
 </html>
