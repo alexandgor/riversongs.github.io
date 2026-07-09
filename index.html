@@ -30,6 +30,7 @@
             max-width: 100%;
             min-height: 100vh;
             position: relative;
+            overflow: hidden;
             background: #111;
             cursor: grab;
         }
@@ -270,14 +271,13 @@
         @media (max-width: 768px) {
             body {
                 min-height: 100svh;
-                overflow-y: auto;
+                overflow: hidden;
             }
 
             #app {
                 position: relative;
                 min-height: 100svh;
-                height: auto;
-                flex: 1;
+                height: 100svh;
             }
 
             #map-wrapper {
@@ -288,16 +288,6 @@
                 min-height: 0;
                 margin: 0;
                 z-index: 0;
-                overflow: visible;
-            }
-
-            #intro-panel {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                max-height: 100svh;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
             }
 
             #info-panel {
@@ -365,19 +355,20 @@
     <div id="loading">Loading map data...</div>
 
     <div id="intro-panel">
-        <h1>Речные песни</h1>
+        <h1>Речные песни // Rivers' songs</h1>
         <p>Проект на основе данных научных наблюдений, в котором звучат сибирские реки.</p>
 
         <blockquote>
             мы обогащаемся, уча иностранный язык — но это удивительная случайность, ведь учим мы его не потому, что не можем выразиться, а потому, что наш собеседник говорит только на нём. находя новый канал коммуникации, мы преодолеваем лимитность другого; и так природа преодолевает ограниченность человека в её понимании, когда обретает голос, различимый, воспринимаемый человеческим существом.<br>
-            из вкладыша в кассету к альбому «Речные песни»
         </blockquote>
+        <p>из вкладыша в кассету к альбому «Речные песни»</p>
+
         <p>Я предлагаю интерактивную карту, где можно послушать, что случалось с реками Енисейского бассейна за четверть века. Звук сгенерирован по архиву данных уровня рек Енисейского бассейна в 2002–2026. Годовой ход уровня складывается из сезонных колебаний (весенние паводки, зимние и летние межени) и синоптических — быстрой реакции рек на внешние события. Вместе они рассказывают о многолетних тенденциях в жизни реки вместе с минутной суетой.</p>
         <p>Все природные черты и динамика в звуке нетронуты, потому что природный феномен не нуждается в очеловечивании или трактовке, нет необходимости вмешиваться в него композиторством: и процесс, и звук самоценны вне выстраивания отношений человека с ним.</p>
         <p>Технически это вычисленный звук, который производил бы осциллятор, если бы колебался по закону хода уровня рек Енисейского бассейна на выбранных гидрологических постах.</p>
         <p>В рамках этой работы выпущен альбом, для создания которого я использовала больше техник алгоритмического синтеза звука из данных гидропостов.</p> 
         <p>Альбом можно послушать на:<br>
-        Бэндкэмпе: <a href="https://shlms.bandcamp.com/album/-" target="_blank" rel="noopener noreferrer">https://shlms.bandcamp.com/album/-</a><br>
+        Бэндкэмпе: <a href="https://shlms.bandcamp.com/album/rivers-songs" target="_blank" rel="noopener noreferrer">https://shlms.bandcamp.com/album/rivers-songs</a><br>
         Ютубе: <a href="https://youtu.be/ilWTYEJtL2U" target="_blank" rel="noopener noreferrer">https://youtu.be/ilWTYEJtL2U</a></p>
         <p>Меня зовут Саша Сойфер, следить за другими моими проектами можно в <a href="https://www.instagram.com/shulamis_" target="_blank" rel="noopener noreferrer">инстаграме</a> и <a href="https://t.me/shulamis" target="_blank" rel="noopener noreferrer">телеграме</a> shulamis.</p>
     </div>
@@ -595,10 +586,6 @@ const csvToDisplayName = {
     'кислокан р тунгуска': 'Тунгуска (посёлок Кислокан)'
 };
 
-const displayNameToCsvName = Object.fromEntries(
-    Object.entries(csvToDisplayName).map(([csvName, displayName]) => [displayName, csvName])
-);
-
 async function loadCSVData() {
     try {
         const data = window.embeddedData;
@@ -612,7 +599,7 @@ async function loadCSVData() {
                 return {
                     id: index,
                     name: point.name,
-                    csvName: displayNameToCsvName[point.name] || point.name,
+                    csvName: point.name,
                     lat: point.lat,
                     lon: point.lon
                 };
@@ -683,8 +670,7 @@ function closeInfoPanel() {
 function drawLevelChart(point) {
     const canvas = document.getElementById('level-chart');
     const ctx = canvas.getContext('2d');
-    const levelKey = point.csvName || point.name;
-    const levelData = levels[levelKey] || levels[point.name];
+    const levelData = levels[point.name];
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvas.clientWidth * dpr;
@@ -809,7 +795,7 @@ class SoundGenerator {
         }
         sumHmRiv = sumHmRiv.map(v => v / maxVal);
 
-        return sumHmRiv.map(v => v * 3.5);
+        return sumHmRiv.map(v => v * 2.9);
     }
 
     generateSound(rivRelLvl) {
