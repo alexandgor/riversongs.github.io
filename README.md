@@ -32,7 +32,7 @@ A project based on scientific observation data, revealing the voice of Siberian 
 
 >we enrich ourselves by learning foreign languages, but that is only an unexpected side effect. we do not learn them because we lack the ability to express ourselves, but because the person >we are speaking to understands only that language. by finding a new channel of communication, we overcome the limits of the other; in the same way, nature overcomes our limitations in understanding it when it acquires a voice perceptible to us.
 
-from description of 'Rivers' songs' cassette 
+from description of «Rivers' songs» cassette 
 <br><br>
 
 I’m presenting an interactive map where you can hear what has been happening to the rivers of the Yenisei Basin over the past quarter-century. The sound was generated using archived data on river levels in the Yenisei Basin from 2002 to 2026. The year river cycle consists of seasonal fluctuations (spring floods, winter and summer low water periods) and synoptic fluctuations—the rivers’ rapid response to external events. Together, they reveal both long-term trends in the river’s life and its moment-to-moment fluctuations.
