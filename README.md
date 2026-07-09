@@ -20,7 +20,7 @@
 <br><br>
 В рамках этой работы выпущен альбом, где используется больше техник алгоритмического синтеза звука из данных гидропостов. \
 Альбом можно послушать на: \
-Бэндкэмп: [https://shlms.bandcamp.com/album/-](https://shlms.bandcamp.com/album/rivers-songs) \
+Бэндкэмп: [https://shlms.bandcamp.com/album/rivers-songs](https://shlms.bandcamp.com/album/rivers-songs) \
 Ютуб: https://youtu.be/ilWTYEJtL2U
 
 Меня зовут Саша Сойфер, я океанолог, музыкант, science art художница.
@@ -45,7 +45,7 @@ Technically, this is a computed sound that an oscillator would produce if it osc
 
 As part of this project, an album with greater use of algorithmic sound synthesis from hydrological data was released. \
 You can listen to the album at: \
-Bandcamp: [https://shlms.bandcamp.com/album/-](https://shlms.bandcamp.com/album/rivers-songs) \
+Bandcamp: [https://shlms.bandcamp.com/album/rivers-songs](https://shlms.bandcamp.com/album/rivers-songs) \
 YouTube: https://youtu.be/ilWTYEJtL2U
 
 My name is Sasha Soyfer; I’m an oceanographer, musician, and science artist.
