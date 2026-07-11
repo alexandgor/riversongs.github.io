@@ -269,10 +269,18 @@
         }
 
         @media (max-width: 768px) {
+            /* Make body flex to layout children properly */
             body {
-                min-height: 100svh;
+                display: flex;
+                flex-direction: column;
             }
 
+            /* Intro panel flows at the top */
+            #intro-panel {
+                flex-shrink: 0;
+            }
+
+            /* Map app takes remaining space */
             #app {
                 flex: 1;
                 min-height: 0;
@@ -280,9 +288,11 @@
                 flex-direction: column;
             }
 
+            /* Map wrapper fills app container */
             #map-wrapper {
                 flex: 1;
                 min-height: 0;
+                height: 100%;
             }
 
             #info-panel {
@@ -422,10 +432,14 @@ const mapImage = document.getElementById('map-image');
 const zoomDisplay = document.getElementById('zoom-display');
 
 function updateMapWrapperHeight(force = false) {
-    // On mobile, don't set inline height - let flexbox handle it
-    if (window.innerWidth <= 768) {
+    // Only set height on desktop - mobile uses flex layout
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        // Let flexbox handle the height on mobile
+        mapWrapper.style.height = '';
         return;
     }
+
     if (!mapImage.naturalWidth || !mapImage.naturalHeight) {
         mapWrapper.style.height = '100vh';
         return;
@@ -488,9 +502,10 @@ function zoom(delta, centerX = null, centerY = null) {
     const targetY = centerY === null ? rect.height / 2 : centerY - rect.top;
 
     // Calculate minimum scale to fit the visible viewport
+    const viewportHeight = window.innerWidth <= 768 ? rect.height : window.innerHeight;
     const minScale = Math.max(
         rect.width / mapImage.naturalWidth,
-        window.innerHeight / mapImage.naturalHeight
+        viewportHeight / mapImage.naturalHeight
     );
     const newScale = Math.max(minScale, Math.min(5, scale * delta));
     const scaleRatio = newScale / scale;
