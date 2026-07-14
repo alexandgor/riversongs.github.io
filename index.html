@@ -269,30 +269,25 @@
         }
 
         @media (max-width: 768px) {
-            /* Make body flex to layout children properly */
             body {
-                display: flex;
-                flex-direction: column;
+                min-height: 100svh;
+                overflow: hidden;
             }
 
-            /* Intro panel flows at the top */
-            #intro-panel {
-                flex-shrink: 0;
-            }
-
-            /* Map app takes remaining space */
             #app {
-                flex: 1;
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
+                position: relative;
+                min-height: 100svh;
+                height: 100svh;
             }
 
-            /* Map wrapper fills app container */
             #map-wrapper {
-                flex: 1;
-                min-height: 0;
+                position: absolute;
+                inset: 0;
+                width: 100%;
                 height: 100%;
+                min-height: 0;
+                margin: 0;
+                z-index: 0;
             }
 
             #info-panel {
@@ -304,9 +299,10 @@
                 bottom: 0;
                 height: auto;
                 max-height: 72svh;
-                padding: 14px 16px 18px;
+                padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
                 border-radius: 16px 16px 0 0;
                 border-top: 1px solid rgba(255,255,255,0.14);
+                margin: 0;
             }
 
             #info-panel h3 {
@@ -359,20 +355,20 @@
     <div id="loading">Loading map data...</div>
 
     <div id="intro-panel">
-        <h1>Речные песни</h1>
+        <h1>Речные песни // Rivers' songs</h1>
         <p>Проект на основе данных научных наблюдений, в котором звучат сибирские реки.</p>
 
         <blockquote>
             мы обогащаемся, уча иностранный язык — но это удивительная случайность, ведь учим мы его не потому, что не можем выразиться, а потому, что наш собеседник говорит только на нём. находя новый канал коммуникации, мы преодолеваем лимитность другого; и так природа преодолевает ограниченность человека в её понимании, когда обретает голос, различимый, воспринимаемый человеческим существом.<br>
         </blockquote>
-        <p style="font-size: 13px"> <i>из вкладыша в кассету к альбому «Речные песни»</i></p>
+        <p style="font-style: italic; font-size: 15px;">из вкладыша в кассету к альбому «Речные песни»</p>
 
         <p>Я предлагаю интерактивную карту, где можно послушать, что случалось с реками Енисейского бассейна за четверть века. Звук сгенерирован по архиву данных уровня рек Енисейского бассейна в 2002–2026. Годовой ход уровня складывается из сезонных колебаний (весенние паводки, зимние и летние межени) и синоптических — быстрой реакции рек на внешние события. Вместе они рассказывают о многолетних тенденциях в жизни реки вместе с минутной суетой.</p>
         <p>Все природные черты и динамика в звуке нетронуты, потому что природный феномен не нуждается в очеловечивании или трактовке, нет необходимости вмешиваться в него композиторством: и процесс, и звук самоценны вне выстраивания отношений человека с ним.</p>
         <p>Технически это вычисленный звук, который производил бы осциллятор, если бы колебался по закону хода уровня рек Енисейского бассейна на выбранных гидрологических постах.</p>
         <p>В рамках этой работы выпущен альбом, для создания которого я использовала больше техник алгоритмического синтеза звука из данных гидропостов.</p> 
         <p>Альбом можно послушать на:<br>
-        Бэндкэмпе: <a href="https://shlms.bandcamp.com/album/-" target="_blank" rel="noopener noreferrer">https://shlms.bandcamp.com/album/-</a><br>
+        Бэндкэмпе: <a href="https://shlms.bandcamp.com/album/rivers-songs" target="_blank" rel="noopener noreferrer">https://shlms.bandcamp.com/album/rivers-songs</a><br>
         Ютубе: <a href="https://youtu.be/ilWTYEJtL2U" target="_blank" rel="noopener noreferrer">https://youtu.be/ilWTYEJtL2U</a></p>
         <p>Меня зовут Саша Сойфер, следить за другими моими проектами можно в <a href="https://www.instagram.com/shulamis_" target="_blank" rel="noopener noreferrer">инстаграме</a> и <a href="https://t.me/shulamis" target="_blank" rel="noopener noreferrer">телеграме</a> shulamis.</p>
     </div>
@@ -432,14 +428,6 @@ const mapImage = document.getElementById('map-image');
 const zoomDisplay = document.getElementById('zoom-display');
 
 function updateMapWrapperHeight(force = false) {
-    // Only set height on desktop - mobile uses flex layout
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-        // Let flexbox handle the height on mobile
-        mapWrapper.style.height = '';
-        return;
-    }
-
     if (!mapImage.naturalWidth || !mapImage.naturalHeight) {
         mapWrapper.style.height = '100vh';
         return;
@@ -502,10 +490,9 @@ function zoom(delta, centerX = null, centerY = null) {
     const targetY = centerY === null ? rect.height / 2 : centerY - rect.top;
 
     // Calculate minimum scale to fit the visible viewport
-    const viewportHeight = window.innerWidth <= 768 ? rect.height : window.innerHeight;
     const minScale = Math.max(
         rect.width / mapImage.naturalWidth,
-        viewportHeight / mapImage.naturalHeight
+        window.innerHeight / mapImage.naturalHeight
     );
     const newScale = Math.max(minScale, Math.min(5, scale * delta));
     const scaleRatio = newScale / scale;
@@ -808,7 +795,7 @@ class SoundGenerator {
         }
         sumHmRiv = sumHmRiv.map(v => v / maxVal);
 
-        return sumHmRiv.map(v => v * 3.5);
+        return sumHmRiv.map(v => v * 2.9);
     }
 
     generateSound(rivRelLvl) {
